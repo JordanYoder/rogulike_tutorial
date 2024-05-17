@@ -7,22 +7,30 @@ from tcod.console import Console
 import tile_types
 
 if TYPE_CHECKING:
+    from engine import Engine
     from entity import Entity
 
 
 class GameMap:
-    def __init__(self, width: int, height: int, entities: Iterable[Entity] = ()):
+    def __init__(self, engine: Engine, width: int, height: int, entities: Iterable[Entity] = ()):
+        self.engine = engine
         self.width = width
         self.height = height
         self.entities = set(entities)
         self.tiles = np.full((width, height), fill_value=tile_types.wall, order="F")
 
         # Tiles that the player can currently see
-        self.visible = np.full((width, height), fill_value=False, order="F")
-        # Tiles that the player has seen before
-        self.explored = np.full((width, height), fill_value=False, order="F")
+        self.visible = np.full(
+            (width, height), fill_value=False, order="F"
+        )  # Tiles the player can currently see
 
-    def get_blocking_entity_at_location(self, location_x: int, location_y: int) -> Optional[Entity]:
+        self.explored = np.full(
+            (width, height), fill_value=False, order="F"
+        )  # Tiles the player has seen before
+
+    def get_blocking_entity_at_location(
+            self, location_x: int, location_y: int,
+    ) -> Optional[Entity]:
         """Iterates through all entities"""
         for entity in self.entities:
             if entity.blocks_movement and entity.x == location_x and entity.y == location_y:
@@ -46,14 +54,13 @@ class GameMap:
         # np.select allows us to conditionally draw the tiles we want, based on what's specified in 'condlist'
         # If it's visible it uses the first value in 'choicelist', if it's not visible but explored then it uses the
         # second value in 'choicelist'. If neither are true, it instead uses the value in SHROUD
-        console.tiles_rgb[0:self.width, 0:self.height] = np.select(
+        console.tiles_rgb[0: self.width, 0: self.height] = np.select(
             condlist=[self.visible, self.explored],
             choicelist=[self.tiles["light"], self.tiles["dark"]],
-            default=tile_types.SHROUD
+            default=tile_types.SHROUD,
         )
 
         for entity in self.entities:
             # Only print entities that are in the FOV
             if self.visible[entity.x, entity.y]:
                 console.print(x=entity.x, y=entity.y, string=entity.char, fg=entity.color)
-
